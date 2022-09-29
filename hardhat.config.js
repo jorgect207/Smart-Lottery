@@ -1,3 +1,5 @@
+const { isPropertyAccessChain } = require("typescript")
+
 require("@nomiclabs/hardhat-waffle")
 require("@nomiclabs/hardhat-etherscan")
 require("hardhat-deploy")
@@ -11,6 +13,7 @@ require("dotenv").config()
 
 const RINKEBY_URL = process.env.RINKEBY_RPC_URL
 const PRIVATE_KEY = process.env.PRIVATE_KEY
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_VERICATION
 
 module.exports = {
     defaultNetwork: "hardhat",
@@ -21,6 +24,12 @@ module.exports = {
             accounts: [PRIVATE_KEY],
 
             blockConfirmations: 6,
+        },
+    },
+    etherscan: {
+        // yarn hardhat verify --network <NETWORK> <CONTRACT_ADDRESS> <CONSTRUCTOR_PARAMETERS>
+        apiKey: {
+            goerli: ETHERSCAN_API_KEY,
         },
     },
 
@@ -42,6 +51,6 @@ module.exports = {
         coinmarketcap: process.env.COINMARKETCAP_API_KEY,
     },
     mocha: {
-        timeout: 500000, // 500 seconds max for running tests
+        timeout: 300000, // 500 seconds max for running tests
     },
 }

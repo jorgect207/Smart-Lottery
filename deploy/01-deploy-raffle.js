@@ -9,15 +9,19 @@ const { verify } = require("../utils/verify")
         uint64 _s_subscriptionId,
         uint256 _interval
 */
-
+const FUND_AMOUNT = ethers.utils.parseEther("7") // 1 ETH or 1^18
 module.exports = async function ({ getNamedAccounts, deployments }) {
     const chainId = network.config.chainId
-    let vrfCoordinatorAddress, subscriptionId, vrfCoordinatorV2Mock, vrfCoordinatorV2Address
+    let vrfCoordinatorAddress,
+        subscriptionId,
+        vrfCoordinatorV2Mock,
+        vrfCoordinatorV2Address,
+        vrfCoordinator
     const { deploy, log } = deployments
     const { deployer } = await getNamedAccounts()
 
     if (developmentNetwork.includes(network.name)) {
-        const vrfCoordinator = await ethers.getContract("VRFCoordinatorV2Mock")
+        vrfCoordinator = await ethers.getContract("VRFCoordinatorV2Mock")
 
         vrfCoordinatorAddress = vrfCoordinator.address
 
@@ -25,8 +29,9 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
         const transaction_receipt = await transaction.wait(1)
 
         subscriptionId = transaction_receipt.events[0].args.subId
+        console.log(subscriptionId)
 
-        await vrfCoordinator.fundSubscription(subscriptionId, "1000000000000000000000")
+        await vrfCoordinator.fundSubscription(subscriptionId, FUND_AMOUNT)
     } else {
         vrfCoordinatorAddress = networkConfig[chainId]["vrfCoordinatorAddress"]
         subscriptionId = networkConfig[chainId]["subscriptionId"]
@@ -45,6 +50,9 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
         log: true,
         waitConfirmation: network.config.blockConfirmation || 1,
     })
+    if (developmentNetwork.includes(network.name)) {
+        await vrfCoordinator.addConsumer(subscriptionId, deploy_raffle.address)
+    }
 
     log("contract deployed!!")
 

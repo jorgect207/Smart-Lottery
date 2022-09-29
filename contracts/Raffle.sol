@@ -6,6 +6,7 @@ import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 //import "@chainlink/contracts/src/v0.8/KeeperCompatible.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
+import "hardhat/console.sol";
 
 //ERROR
 error NO_ENOUGHT_MONEY();
@@ -50,6 +51,8 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
     event new_ticket(address buyer);
     event new_winner(address winner);
     event RequestedRaffleWinner(uint256 indexed requestId);
+    event No_winner(uint256 No_winner);
+    event staring(bool start);
 
     //VARIABLES
 
@@ -76,7 +79,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
         bytes32 _keyHash,
         uint64 _s_subscriptionId,
         uint256 _interval
-    ) VRFConsumerBaseV2(vrfCoordinator) {
+    ) VRFConsumerBaseV2(_vrfCoordinator) {
         State = raffle_State.OPEN;
         numWords = num_winners;
         vrfCoordinator = _vrfCoordinator;
@@ -112,6 +115,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
         bytes memory /* checkData */
     )
         public
+        view
         override
         returns (
             bool upkeepNeeded,
@@ -143,49 +147,22 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
         emit RequestedRaffleWinner(s_requestId);
     }
 
-    function fulfillRandomWords(
-        uint256,
-        /*requestId*/
-        uint256[] memory randomWords
-    ) internal override {
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
+        emit staring(true);
+        State = raffle_State.OPEN;
         s_randomWords = randomWords;
-        ticket_winner = s_randomWords[0] % 99;
-        send_money();
+        ticket_winner = randomWords[0] % players_array.length;
+        uint256 value_share = 1 * 10**18;
+        (bool money, ) = payable(players_array[ticket_winner].address_person).call{
+            value: value_share
+        }("");
+        require(money, "ether not send");
+
+        emit new_winner(players_array[ticket_winner].address_person);
+        State = raffle_State.OPEN;
     }
 
     //send the money and restart
-
-    function send_money() internal {
-        if (State != raffle_State.SENDIG) {
-            revert NO_SENDIG_STATE();
-        }
-        uint256 number_of_winners = 0;
-
-        for (uint256 i; i < players_array.length; i++) {
-            if (ticket_winner == players_array[i].number_of) {
-                number_of_winners += 1;
-                winners.push(
-                    Lottery({
-                        address_person: players_array[i].address_person,
-                        number_of: players_array[i].number_of
-                    })
-                );
-                address_w.push(players_array[i].address_person);
-            }
-            delete players_array[i];
-        }
-
-        for (uint256 i; i < winners.length; i++) {
-            uint256 value_share = (1 / winners.length) * 10**18;
-            (bool money, ) = payable(winners[i].address_person).call{value: value_share}("");
-            require(money, "ether not send");
-            emit new_winner(winners[i].address_person);
-        }
-        s_lastTimeStamp = block.timestamp;
-
-        number = address_w.length - 1;
-        State = raffle_State.OPEN;
-    }
 
     function get_num_winners() public view returns (uint256) {
         return numWords;

@@ -69,7 +69,7 @@ const { developmentNetwork, networkConfig } = require("../../helper-hardhat-conf
                   //await network.provider.request({ method: "evm_mine", params: [] })
                   await RaffleContract.performUpkeep([])
                   await expect(
-                      RaffleContract.Buy_lottery("234", { value: ethersMoney })
+                      RaffleContract.Buy_lottery("24", { value: ethersMoney })
                   ).to.be.revertedWith("NO_OPEN_STATE")
               })
           })
@@ -117,22 +117,63 @@ const { developmentNetwork, networkConfig } = require("../../helper-hardhat-conf
           describe("sending money", function () {
               beforeEach(async () => {
                   await RaffleContract.Buy_lottery("98", { value: ethersMoney })
-                  await network.provider.send("evm_increaseTime", [interval.toNumber() + 1])
-                  await network.provider.request({ method: "evm_mine", params: [] })
-              })
-              it("send money just in case", async function () {
-                  const accounts = await ethers.getSigners()
 
+                  let accounts = await ethers.getSigners()
                   for (let i = 2; i < 6; i++) {
-                      const newplayers = await RaffleContract.connect(accounts[i])
+                      let newplayers = RaffleContract.connect(accounts[i])
                       await newplayers.Buy_lottery("23", {
                           value: ethersMoney,
                       })
                   }
+
+                  await network.provider.send("evm_increaseTime", [interval.toNumber() + 5])
+                  await network.provider.send("evm_mine", [])
+              })
+
+              it("proving mock string", async () => {
+                  const tx = await RaffleContract.performUpkeep([])
+                  const tx_receipt = await tx.wait()
+                  const tx_string = tx_receipt.events[1].args.requestId
+                  console.log(tx_string.toString())
+                  await expect(
+                      VRFContract.fulfillRandomWords(tx_string, RaffleContract.address)
+                  ).to.emit(VRFContract, "RandomWordsFulfilled")
+              })
+
+              it("proving mock perform", async () => {
+                  await expect(RaffleContract.performUpkeep([])).to.emit(
+                      VRFContract,
+                      "RandomWordsRequested"
+                  )
+              })
+
+              it("proving if mock call my function ", async () => {
+                  const tx = await RaffleContract.performUpkeep([])
+                  const tx_receipt = await tx.wait()
+                  const tx_string = tx_receipt.events[1].args.requestId
+                  console.log(tx_string.toString())
+                  await expect(
+                      VRFContract.fulfillRandomWords(tx_string, RaffleContract.address)
+                  ).to.emit(RaffleContract, "staring")
+              })
+
+              it("can only be called after performupkeep", async () => {
+                  const tx = await RaffleContract.performUpkeep([])
+                  const tx_receipt = await tx.wait()
+                  const tx_string = tx_receipt.events[1].args.requestId
+                  console.log(tx_string.toString())
+
+                  await VRFContract.fulfillRandomWords(tx_string, RaffleContract.address)
+
+                  const State = await RaffleContract.get_state()
+                  assert.equal(State, 0)
+              })
+
+              it("send money just in case", async function () {
                   await new Promise(async (resolve, reject) => {
-                      RaffleContract.once("new_winner", async () => {
+                      RaffleContract.once("RandomWordsFulfilled", async () => {
                           try {
-                              console.log("winner picked")
+                              console.log("no winner picked")
                               const winner = await RaffleContract.get_address_winner()
                               const Number_winner = await RaffleContract.get_last_number_winner()
 
@@ -146,12 +187,11 @@ const { developmentNetwork, networkConfig } = require("../../helper-hardhat-conf
                               reject(error)
                           }
                       })
-                      const tx = await RaffleContract.performUpkeep([])
-                      const tx_receipt = await tx.wait(1)
-                      await VRFContract.fulfillRandomWords(
-                          tx_receipt.events[1].args.s_requestId,
-                          RaffleContract.address
-                      )
+                      const tx = await RaffleContract.performUpkeep("0x")
+                      const tx_receipt = await tx.wait()
+                      const tx_string = tx_receipt.events[1].args.requestId
+
+                      await VRFContract.fulfillRandomWords(tx_string, RaffleContract.address)
                   })
               })
           })
