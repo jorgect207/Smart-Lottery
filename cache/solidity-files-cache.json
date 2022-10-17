@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/home/jorgect/lottery-smartcontract/contracts/Raffle.sol": {
-      "lastModificationDate": 1664403362376,
-      "contentHash": "2b326022cf6f3597c64a6d5ebbbf6179",
+      "lastModificationDate": 1665623044176,
+      "contentHash": "f8ace30c319e174102beef280a3f62b6",
       "sourceName": "contracts/Raffle.sol",
       "solcConfig": {
         "version": "0.8.9",

@@ -30,7 +30,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
     address private vrfCoordinator;
     bytes32 private keyHash;
 
-    uint32 constant callbackGasLimit = 100000;
+    uint32 constant callbackGasLimit = 4000000;
     uint16 constant requestConfirmations = 3;
 
     uint32 private numWords;
@@ -51,7 +51,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
     event new_ticket(address buyer);
     event new_winner(address winner);
     event RequestedRaffleWinner(uint256 indexed requestId);
-    event No_winner(uint256 No_winner);
+    event No_winner(bool No_winner);
     event staring(bool start);
 
     //VARIABLES
@@ -64,7 +64,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
     mapping(address => uint256) public players;
 
     Lottery[] public players_array;
-    Lottery[] public winners;
+    address[] public winners;
 
     uint256 private time_batch;
     raffle_State public State;
@@ -94,10 +94,10 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
     //get into the lottery
 
     function Buy_lottery(uint256 _number) external payable {
-        if (_number <= 1) {
+        if (_number < 1) {
             revert JUST_TwO_NUMBER();
         }
-        if (_number >= 99) {
+        if (_number > 99) {
             revert JUST_TwO_NUMBER();
         }
         if (msg.value < 0.01 ether) {
@@ -108,6 +108,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
         }
         players_array.push(Lottery({address_person: msg.sender, number_of: _number}));
         players[msg.sender] = _number;
+
         emit new_ticket(msg.sender);
     }
 
@@ -147,22 +148,47 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
         emit RequestedRaffleWinner(s_requestId);
     }
 
-    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
-        emit staring(true);
-        State = raffle_State.OPEN;
-        s_randomWords = randomWords;
-        ticket_winner = randomWords[0] % players_array.length;
-        uint256 value_share = 1 * 10**18;
-        (bool money, ) = payable(players_array[ticket_winner].address_person).call{
-            value: value_share
-        }("");
-        require(money, "ether not send");
+    function send_money(uint256 _ticket_winner) internal {
+        for (uint256 i = 0; i < players_array.length; i++) {
+            if (players_array[i].number_of == _ticket_winner) {
+                (bool money, ) = payable(players_array[i].address_person).call{
+                    value: address(this).balance
+                }("");
+                require(money, "ether not send");
 
-        emit new_winner(players_array[ticket_winner].address_person);
-        State = raffle_State.OPEN;
+                emit new_winner(players_array[i].address_person);
+            }
+            delete players_array[i];
+            emit No_winner(true);
+        }
     }
 
-    //send the money and restart
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
+        emit staring(true);
+        s_randomWords = randomWords;
+        ticket_winner = randomWords[0] % 99;
+
+        // (bool money, ) = payable(players_array[ticket_winner].address_person).call{
+        //     value: address(this).balance
+        // }("");
+        // require(money, "ether not send");
+        // emit new_winner(players_array[ticket_winner].address_person);
+
+        for (uint256 i = 0; i < players_array.length; i++) {
+            if (players_array[i].number_of == ticket_winner) {
+                (bool money, ) = payable(players_array[i].address_person).call{
+                    value: address(this).balance
+                }("");
+                require(money, "ether not send");
+
+                emit new_winner(players_array[i].address_person);
+            }
+            delete players_array[i];
+        }
+        emit No_winner(true);
+
+        State = raffle_State.OPEN;
+    }
 
     function get_num_winners() public view returns (uint256) {
         return numWords;

@@ -9,7 +9,7 @@ const { verify } = require("../utils/verify")
         uint64 _s_subscriptionId,
         uint256 _interval
 */
-const FUND_AMOUNT = ethers.utils.parseEther("7") // 1 ETH or 1^18
+const FUND_AMOUNT = ethers.utils.parseEther("20") // 1 ETH or 1^18
 module.exports = async function ({ getNamedAccounts, deployments }) {
     const chainId = network.config.chainId
     let vrfCoordinatorAddress,

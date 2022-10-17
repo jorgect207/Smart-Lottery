@@ -44,13 +44,13 @@ module.exports = {
         },
     },
     gasReporter: {
-        enabled: false,
+        enabled: true,
         currency: "USD",
         outputFile: "gas-report.txt",
         noColors: true,
         coinmarketcap: process.env.COINMARKETCAP_API_KEY,
     },
     mocha: {
-        timeout: 300000, // 500 seconds max for running tests
+        timeout: 800000, // 500 seconds max for running tests
     },
 }
